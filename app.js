@@ -2,6 +2,7 @@ var express = require('express');
 var app = express();
 var nodemailer = require('nodemailer');
 var MemoryStore = require('connect').session.MemoryStore;
+var dbPath = 'mongodb://localhost/nodebackbone';
 var mongoose = require('mongoose');
 
 
@@ -18,7 +19,9 @@ var config = {
    }
 };
 
-var Account = require('./models/Account')(config, mongoose, nodemailer);
+var models = {
+   Account :require('./models/Account')(config, mongoose, nodemailer)
+};
 
 app.configure(function(){
    app.set('view engine', 'jade');
@@ -28,11 +31,13 @@ app.configure(function(){
    app.use(express.cookieParser());
    app.use(express.session(
       {secret: "SocialNet secret key", store: new MemoryStore()}));
-   mongoose.connect('mongodb://localhost/nodebackbone');
+   mongoose.connect(dbPath, function onMongooseError(err){
+      if (err) throw err;
+   });
 });
 
 app.get('/', function(req, res){
-   res.render("index.jade", {layout:false});
+   res.render("index.jade");
 });
 
 app.get('/account/authenticated', function(req, res){
@@ -107,4 +112,46 @@ app.post('/resetPassword', function(req, res) {
    res.render('resetPasswordSuccess.jade');
 });
 
-app.listen(process.env.PORT || 8080);
+app.get('/accounts/:id', function(req, res){
+   var accountId = req.params.id == 'me' ? req.session.accountId : req.params.id;
+   Account.findOne({_id:accountId}, function(account){
+      res.send(account);
+   });
+});
+
+app.get('/accounts/:id/status', function(req, res){
+   var accountId = req.params.id == 'me' ? req.session.accountId : req.params.id;
+   models.Account.findById(accountId, function(account){
+      res.send(account.status);
+   });
+});
+
+app.post('/accounts/:id/status', function(req, res){
+   var accountId = req.params.id == 'me' ? req.session.accountId : req.params.id;
+   models.Account.findById(accountId, function(account){
+      status = {
+         name: account.name,
+         status: req.param('status', '')
+      };
+      account.status.push(status);
+
+      account.activity.push(status);
+      account.save(function(err){
+         if (err) {
+            console.log('Error saving account: ' + err);
+         }
+      });
+   });
+   res.send(200);
+});
+
+app.get('/accounts/:id/activity', function(req, res){
+   var accountId = req.params.id == 'me' ? req.session.accountId : req.params.id;
+   models.Account.findById(accountId, function(account){
+      res.send(account.activity);
+   });
+});
+
+var myPort = process.env.PORT || 8080;
+app.listen(myPort);
+console.log('Listening on port ' + myPort);
