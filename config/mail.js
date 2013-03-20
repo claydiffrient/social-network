@@ -1,7 +1,8 @@
-{
-   service: "SendGrid",
-   auth: {
-      user: 'claydiffrient',
       pass: ''
-   }
+
+module.exports = {
+  service: "SendGrid",
+  auth: {
+    user: "claydiffrient",
+  }
 }
