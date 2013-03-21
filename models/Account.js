@@ -84,6 +84,43 @@ module.exports = function(config, mongoose, nodemailer) {
     });
   }
 
+  var findByString = function(searchStr, callback) {
+    var searchRegex = new RegExp(searchStr, 'i');
+    Account.find({
+      $or: [
+      { 'name.full': {$regex: searchRegex}},
+      { email: {$regex: searchRegex}}
+      ]
+    }, callback);
+  }
+
+  var addContact = function(account, addcontact) {
+    contact = {
+      name: addcontact.name,
+      accountId: addcontact._id,
+      added: new Date(),
+      updated: new Date()
+    };
+    account.contacts.push(contact);
+    account.save(function(err){
+      if (err) {
+        console.log('Error saving account: ' + err);
+      }
+    });
+  }
+
+  var removeContact = function(account, contactId){
+    if (null == account.contacts) {
+      return;
+    }
+    account.contacts.forEach(function(contact){
+      if (contact.accountId == contactId) {
+        account.contacts.remove(contact);
+      }
+    });
+    account.save();
+  }
+
   var register = function(email, password, firstName, lastName) {
     var shaSum = crypto.createHash('sha256');
     shaSum.update(password);
@@ -101,11 +138,26 @@ module.exports = function(config, mongoose, nodemailer) {
     console.log('Save command was sent');
   }
 
+  var hasContact = function(account, contactId) {
+    if (null == account.contacts) {
+      return false;
+    }
+    account.contacts.forEach(function(contact){
+      if (contact.accountId == contactId) {
+        return true;
+      }
+    });
+    return false;
+  }
+
   return {
     findById: findById,
     register: register,
     forgotPassword: forgotPassword,
     changePassword: changePassword,
+    findByString: findByString,
+    addContact: addContact,
+    removeContact: removeContact,
     login: login,
     Account: Account
   }
